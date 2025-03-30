@@ -4,6 +4,8 @@ from sklearn.cluster import KMeans
 import argparse
 from typing import Optional
 
+from PIL import Image
+
 
 def flatten_image(image_array: np.ndarray) -> np.ndarray:
     height = image_array.shape[0]
@@ -11,8 +13,11 @@ def flatten_image(image_array: np.ndarray) -> np.ndarray:
     return np.reshape(image_array, (height * width, 3))
 
 
-def load_image(path_pic: str) -> np.ndarray:
-    return cv2.cvtColor(cv2.imread(path_pic), cv2.COLOR_BGR2RGB)
+def load_image(image_file) -> np.ndarray:
+    # Предполагаем, что image_file - это объект файла или массив байтов
+    img = Image.open(image_file)  # Загружаем изображение с помощью Pillow
+    img = img.convert("RGB")  # Преобразуем в RGB
+    return np.array(img)  # Конвертируем в массив NumPy
 
 
 def save_image(filename: str, image_array: np.ndarray) -> None:
@@ -98,7 +103,6 @@ def draw_contours(image_array: np.ndarray, color_list: np.ndarray, min_sized_con
                         txt_y = int(M["m01"] / M["m00"])
                         cv2.putText(canvas, '{:d}'.format(ind + 1), (txt_x - 5, txt_y + 5),
                                     cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 0), 1)
-
     return canvas
 
 def relabel_image(labeled_image_array: np.ndarray, color_list: np.ndarray) -> (np.ndarray, np.ndarray):
@@ -110,21 +114,18 @@ def relabel_image(labeled_image_array: np.ndarray, color_list: np.ndarray) -> (n
 
     return new_array, new_color_list
 
-def create_image(image_file: str, color_list: np.ndarray, min_sized_contour: int = 20,
-                                      filter_strength: int = 14, colored_lines=False, add_label=True,
-                                      show_colored=False, output_file: Optional[str] = None):
-    if output_file is None:
-        output_file = image_file.lower().split('.jpg')[0] + '_paintbynumbers.jpg'
+
+
+def create_image(image_file, color_list: np.ndarray, min_sized_contour: int = 20,
+                 filter_strength: int = 1, colored_lines=False, add_label=True,
+                 show_colored=False):
 
     image_array = load_image(image_file)
     cleaned_image_array = clean_image(image_array, filter_strength=filter_strength)
     labeled_image_array = calc_distance_to_colors(cleaned_image_array, color_list)
     relabeled_image_array, new_color_list = relabel_image(labeled_image_array, color_list)
     new_color_image = replace_colors(relabeled_image_array, new_color_list)
-    contoured_image = draw_contours(new_color_image, new_color_list, min_sized_contour, colored_lines, add_label,
-                                    show_colored)
-
-    save_image(output_file, contoured_image)
+    contoured_image = draw_contours(new_color_image, new_color_list, min_sized_contour, colored_lines, add_label, show_colored)
     return contoured_image
 
 
